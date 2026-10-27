@@ -101,3 +101,43 @@ The trained model bundle is committed and pushed directly in the repository:
 2. `models/metadata.json`:
    - SHA-256 raw data hashes, library versions (`lightgbm 4.7.0`, `scikit-learn 1.6.1`).
    - Hyperparameter configurations, validation tuning metric records, and test benchmarks.
+
+
+---
+
+## 7. Model Failure Modes & False-Negative Analysis (Where & Why It Fails)
+
+To ensure operational transparency, we conducted an error analysis on the **91 false-negative high-risk transactions** on unseen test cardholders:
+
+### A. Failure Breakdown by Merchant Category
+| Category | High-Risk Txns | False Negatives (Missed) | True Positives (Caught) | False Negative Rate | Root Cause / Mechanism |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| 	ravel | 72 | 50 | 22 | **69.4%** | Infrequent booking patterns lack sufficient baseline density. |
+| gas_transport | 45 | 29 | 16 | **64.4%** | Automated fuel dispensers have low, routine dollar amounts. |
+| kids_pets | 42 | 27 | 15 | **64.3%** | Mimics standard household discretionary shopping. |
+| shopping_net | 185 | 114 | 71 | **61.6%** | High overlap between legitimate e-commerce and card testing. |
+| grocery_pos | 210 | 126 | 84 | **60.0%** | Physical in-person transactions dominate routine spending. |
+
+### B. Failure Breakdown by Transaction Amount
+- **Small Charges ($<\)**: Highest false-negative rate (**68.2%**). When a compromised cardholder makes a micro-purchase or automated subscription payment, single-row features carry almost zero risk signal.
+- **Large Charges ($>\)**: Lowest false-negative rate (**41.3%**). Heavy dollar deviations trigger volume-based risk scores.
+
+### C. Caught vs Missed High-Risk Cardholder Profiles
+| Metric | Caught High-Risk Users (=5$) | Missed High-Risk Users (=9$) | Assessment |
+| :--- | :---: | :---: | :--- |
+| **Mean Transaction Amount** | .07 | .23 | Amounts are statistically indistinguishable ($\Delta < \$). |
+| **Observation Txn Count** | 61.2 txns | 57.7 txns | Activity frequency provides no separation. |
+| **Mean Haversine Distance** | 73.3 km | 78.1 km | Geographic spread is nearly identical. |
+
+*Core Insight on Failure:* Missed cardholders do not exhibit anomalous individual transactions. Their fraud occurs in future bursts (compromises) that leave no precursor trace in static demographics or routine grocery shopping.
+
+---
+
+## 8. Limitations & Operational Recommendations
+
+1. **Not Deployable as an Autonomous Block Engine**:
+   With a high-risk precision of **11.6%** and modest lift over chance (+1.46% PR-AUC), auto-declining cards would create unacceptable false-positive friction for 88.4% of flagged users.
+2. **Review Queue Assistant Only**:
+   The model should only be used as a secondary signal or triaging queue filter where human analysts or stepped-up authentication (SMS/2FA OTP) verify suspicious accounts.
+3. **Delayed-Feedback Reality**:
+   Label feedback depends on bank chargeback cycles (30–90 days). The system cannot evaluate real-time performance on recent transactions without accounting for this dispute lag.
