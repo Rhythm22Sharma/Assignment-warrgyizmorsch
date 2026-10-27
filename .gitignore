@@ -23,3 +23,10 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# LaTeX local documents
+*.tex
+*.pdf
+*.aux
+*.log
+*.out
